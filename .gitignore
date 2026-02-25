@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+
+# Native builds
+ios/
+android/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Env files
+.env
+.env.*
+
+# Firecrawl cache
+.firecrawl/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+firebase-debug.log
+
+# TypeScript
+*.tsbuildinfo
