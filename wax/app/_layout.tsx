@@ -1,26 +1,46 @@
 import '../global.css';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
+import { View, ActivityIndicator } from 'react-native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useAuthStore } from '@/lib/store/auth-store';
+import { loadStoredAuth } from '@/lib/api/client';
+import { api } from '@/lib/api/endpoints';
 
-import { useColorScheme } from '@/components/useColorScheme';
-
-export {
-  // Catch any errors thrown by the Layout component.
-  ErrorBoundary,
-} from 'expo-router';
+export { ErrorBoundary } from 'expo-router';
 
 export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
   initialRouteName: '(tabs)',
 };
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 6 * 60 * 60 * 1000, // 6 hours (ToS compliance)
+      retry: 2,
+    },
+  },
+});
+
+// Force dark theme for navigation chrome
+const WaxDarkTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: '#0a0a0a',
+    card: '#0a0a0a',
+    border: '#2a2a2a',
+    primary: '#c4882a',
+  },
+};
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -28,7 +48,6 @@ export default function RootLayout() {
     ...FontAwesome.font,
   });
 
-  // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
     if (error) throw error;
   }, [error]);
@@ -43,18 +62,68 @@ export default function RootLayout() {
     return null;
   }
 
-  return <RootLayoutNav />;
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider value={WaxDarkTheme}>
+        <RootLayoutNav />
+      </ThemeProvider>
+    </QueryClientProvider>
+  );
 }
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme();
+  const [isReady, setIsReady] = useState(false);
+  const { isAuthenticated, setAuth } = useAuthStore();
+
+  useEffect(() => {
+    async function restoreAuth() {
+      try {
+        const stored = await loadStoredAuth();
+        if (stored) {
+          const profile = await api.getProfile(stored.username);
+          setAuth({
+            username: stored.username,
+            avatarUrl: profile.avatar_url,
+            accessToken: stored.accessToken,
+            accessTokenSecret: stored.accessTokenSecret,
+          });
+        }
+      } catch {
+        // Stored auth is invalid or network error — show login screen
+      } finally {
+        setIsReady(true);
+      }
+    }
+    restoreAuth();
+  }, []);
+
+  if (!isReady) {
+    return (
+      <View className="flex-1 bg-[#0a0a0a] items-center justify-center">
+        <ActivityIndicator color="#c4882a" size="large" />
+      </View>
+    );
+  }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-      </Stack>
-    </ThemeProvider>
+    <Stack screenOptions={{ headerShown: false }}>
+      {isAuthenticated ? (
+        <>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen
+            name="release/[id]"
+            options={{
+              headerShown: true,
+              headerStyle: { backgroundColor: '#0a0a0a' },
+              headerTintColor: '#f5f5f5',
+              headerTitle: '',
+              presentation: 'card',
+            }}
+          />
+        </>
+      ) : (
+        <Stack.Screen name="login" />
+      )}
+    </Stack>
   );
 }
