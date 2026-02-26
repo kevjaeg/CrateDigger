@@ -37,6 +37,7 @@ export default function TabLayout() {
         name="search"
         options={{
           title: 'Search',
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="search-outline" size={size} color={color} />
           ),
