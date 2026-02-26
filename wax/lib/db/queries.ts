@@ -208,7 +208,7 @@ export async function getWantlistPage(
   );
 
   const items = await db.getAllAsync<CollectionRow>(
-    'SELECT id as instance_id, release_id, 0 as folder_id, title, artist, year, \'\' as genres, \'\' as styles, \'\' as labels, \'\' as formats, thumb_url, \'\' as cover_url, rating, date_added, notes FROM wantlist_items ORDER BY date_added DESC LIMIT ? OFFSET ?',
+    'SELECT id as instance_id, release_id, 0 as folder_id, title, artist, year, \'\' as genres, \'\' as styles, \'\' as labels, \'\' as formats, thumb_url, thumb_url as cover_url, rating, date_added, notes FROM wantlist_items ORDER BY date_added DESC LIMIT ? OFFSET ?',
     [perPage, (page - 1) * perPage]
   );
 
