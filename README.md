@@ -7,15 +7,42 @@ Wax connects to your existing Discogs account and gives you a faster, more polis
 ## Features
 
 - **Collection browser** — 2-column grid with cover art, pull-to-refresh, infinite scroll, and background sync
+- **Sorting** — Sort collection and wantlist by date added, artist, title, or year
 - **Search** — Debounced search with format and year filters, infinite pagination via Discogs API
 - **Barcode scanner** — Point your camera at a record's barcode for instant lookup
 - **Wantlist** — Browse and manage your Discogs wantlist with the same grid layout
 - **Release detail** — Hero cover art, tracklist, labels, community stats, marketplace pricing, add/remove from collection and wantlist
+- **Rating editor** — Rate releases 1–5 stars directly in the app (syncs to Discogs)
+- **Sharing** — Share any release via the native share sheet
 - **Profile & stats** — Genre breakdown, decade distribution, top labels, format split, collection growth chart, and collection value
+- **Dark / Light / System theme** — Fully themed UI with instant toggle
 - **Offline support** — SQLite-cached collection data with offline detection banner
 - **Skeleton loading** — Shimmer placeholders with reanimated opacity pulse
 - **Haptic feedback** — Tactile responses on key interactions (iOS/Android)
 - **Toast notifications** — Animated slide-down error/success toasts
+
+## Why Wax?
+
+Most Discogs apps are either basic web wrappers or read-only viewers. Wax is a fully native client that goes further:
+
+| | Wax | Official Discogs App | Other 3rd-party Apps |
+|---|:---:|:---:|:---:|
+| Collection grid with cover art | **Yes** | List only | Varies |
+| Sort by artist / title / year | **4 options** | Date only | 1–2 options |
+| Barcode scanner | **Instant** | Slow | Sometimes |
+| Wantlist management | **Full** | Web only | Rare |
+| Rate releases in-app | **Yes** | Web only | No |
+| Stats dashboard | **6 charts** | No | Basic at best |
+| Collection value | **Min / Med / Max** | Web only | Rare |
+| Share releases | **Native sheet** | No | Rare |
+| Dark + Light theme | **Both + System** | Light only | Usually one |
+| Offline mode | **SQLite cache** | No | No |
+| Marketplace prices | **Per release** | Web only | Some |
+| Background sync | **Incremental** | No cache | No |
+| Haptic feedback | **Yes** | No | No |
+| Smart rate limiting | **Priority queue** | Internal | Rarely |
+
+> Wax is what the official Discogs app should be.
 
 ## Screenshots
 
@@ -125,7 +152,8 @@ cd CrateDigger/wax
 npm install
 
 # Add your Discogs API credentials
-# Edit lib/api/client.ts and replace YOUR_CONSUMER_KEY / YOUR_CONSUMER_SECRET
+cp .env.example .env
+# Edit .env and add your EXPO_PUBLIC_DISCOGS_KEY and EXPO_PUBLIC_DISCOGS_SECRET
 
 # Start the dev server
 npx expo start
