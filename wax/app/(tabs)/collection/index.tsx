@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, FlatList, ActivityIndicator } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSyncStore } from '@/lib/store/sync-store';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { getCollectionPage, type CollectionRow } from '@/lib/db/queries';
@@ -77,10 +78,12 @@ export default function CollectionScreen() {
     setRefreshing(false);
   }, [username, loadFirstPage]);
 
-  // Initial load
-  useEffect(() => {
-    loadFirstPage();
-  }, [loadFirstPage]);
+  // Reload when tab is focused (picks up adds/removes from other screens)
+  useFocusEffect(
+    useCallback(() => {
+      loadFirstPage();
+    }, [loadFirstPage])
+  );
 
   // Check staleness on mount and trigger background sync
   useEffect(() => {

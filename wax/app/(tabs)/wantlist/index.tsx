@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, FlatList, ActivityIndicator } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { getWantlistPage, type CollectionRow } from '@/lib/db/queries';
 import { syncWantlist, isWantlistSyncStale } from '@/lib/sync/wantlist-sync';
@@ -65,10 +66,12 @@ export default function WantlistScreen() {
     setRefreshing(false);
   }, [username, loadFirstPage]);
 
-  // Initial load
-  useEffect(() => {
-    loadFirstPage();
-  }, [loadFirstPage]);
+  // Reload when tab is focused (picks up adds/removes from other screens)
+  useFocusEffect(
+    useCallback(() => {
+      loadFirstPage();
+    }, [loadFirstPage])
+  );
 
   // Sync on first mount if data is stale (background)
   useEffect(() => {
