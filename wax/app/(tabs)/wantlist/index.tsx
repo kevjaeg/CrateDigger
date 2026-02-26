@@ -6,6 +6,7 @@ import { syncWantlist, isWantlistSyncStale } from '@/lib/sync/wantlist-sync';
 import ReleaseCard from '@/components/release-card';
 import EmptyState from '@/components/empty-state';
 import { SkeletonGrid } from '@/components/skeleton';
+import { showToast } from '@/lib/store/toast-store';
 
 const PAGE_SIZE = 50;
 
@@ -58,6 +59,7 @@ export default function WantlistScreen() {
       await syncWantlist(username);
     } catch (error) {
       console.error('[Wantlist] Refresh sync error:', error);
+      showToast('Sync failed — showing cached data');
     }
     await loadFirstPage();
     setRefreshing(false);

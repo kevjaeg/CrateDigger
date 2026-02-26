@@ -70,20 +70,41 @@ export async function discogsRequest<T>(
     }
   }
 
-  const response = await fetch(url, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch (error) {
+    // Network error (offline, DNS failure, timeout)
+    const { markOffline } = await import('../store/network-store');
+    markOffline();
+    throw new NetworkError(
+      error instanceof Error ? error.message : 'Network request failed'
+    );
+  }
+
+  // Successful fetch — mark as online
+  const { markOnline } = await import('../store/network-store');
+  markOnline();
 
   const remaining = response.headers.get('X-Discogs-Ratelimit-Remaining');
   if (remaining !== null) {
-    // Rate limiter integration will be added in Task 5
-    console.log(`[Discogs] Rate limit remaining: ${remaining}`);
+    rateLimiterRef?.updateServerRemaining(Number(remaining));
   }
 
   if (!response.ok) {
     const errorBody = await response.text();
+
+    // Auth expired — clear tokens and redirect to login (401 only, not 403)
+    if (response.status === 401) {
+      await clearStoredAuth();
+      const { useAuthStore } = await import('../store/auth-store');
+      useAuthStore.getState().clearAuth();
+    }
+
     throw new DiscogsApiError(response.status, errorBody, url);
   }
 
@@ -95,6 +116,12 @@ export async function discogsRequest<T>(
   return response.json() as Promise<T>;
 }
 
+// Lazy reference to rate limiter to avoid circular imports
+let rateLimiterRef: { updateServerRemaining: (n: number) => void } | null = null;
+export function setRateLimiterRef(ref: { updateServerRemaining: (n: number) => void }) {
+  rateLimiterRef = ref;
+}
+
 export class DiscogsApiError extends Error {
   constructor(
     public status: number,
@@ -104,6 +131,28 @@ export class DiscogsApiError extends Error {
     super(`Discogs API error ${status}: ${body} (${url})`);
     this.name = 'DiscogsApiError';
   }
+}
+
+export class NetworkError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NetworkError';
+  }
+}
+
+/** Returns a user-friendly message for any error */
+export function friendlyErrorMessage(error: unknown): string {
+  if (error instanceof NetworkError) {
+    return 'No internet connection';
+  }
+  if (error instanceof DiscogsApiError) {
+    if (error.status === 401) return 'Session expired — please log in again';
+    if (error.status === 403) return 'Access denied';
+    if (error.status === 404) return 'Not found on Discogs';
+    if (error.status === 429) return 'Too many requests — please wait';
+    if (error.status >= 500) return 'Discogs is having issues — try again later';
+  }
+  return 'Something went wrong';
 }
 
 // --- OAuth Flow ---

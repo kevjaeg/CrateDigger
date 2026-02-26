@@ -23,6 +23,8 @@ import {
 } from '@/lib/db/queries';
 import { SkeletonReleaseDetail } from '@/components/skeleton';
 import { hapticSuccess, hapticWarning } from '@/lib/haptics';
+import { showToast } from '@/lib/store/toast-store';
+import { friendlyErrorMessage } from '@/lib/api/client';
 
 const BLURHASH = 'L6Pj0^jE.AyE_3t7t7R**0o#DgR4';
 
@@ -122,6 +124,7 @@ export default function ReleaseDetailScreen() {
       }
     } catch (e) {
       console.error('[ReleaseDetail] Collection toggle failed:', e);
+      showToast(friendlyErrorMessage(e));
     } finally {
       setMutating(false);
     }
@@ -149,6 +152,7 @@ export default function ReleaseDetailScreen() {
       }
     } catch (e) {
       console.error('[ReleaseDetail] Wantlist toggle failed:', e);
+      showToast(friendlyErrorMessage(e));
     } finally {
       setMutating(false);
     }

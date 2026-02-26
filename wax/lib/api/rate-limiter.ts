@@ -117,3 +117,7 @@ class RateLimiter {
 }
 
 export const rateLimiter = new RateLimiter(60);
+
+// Wire up the rate limiter reference for the API client
+import { setRateLimiterRef } from './client';
+setRateLimiterRef(rateLimiter);

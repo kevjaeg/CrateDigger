@@ -8,6 +8,7 @@ import ReleaseCard from '@/components/release-card';
 import EmptyState from '@/components/empty-state';
 import { SkeletonGrid } from '@/components/skeleton';
 import SyncProgressBar from '@/components/sync-progress-bar';
+import { showToast } from '@/lib/store/toast-store';
 
 const PAGE_SIZE = 50;
 
@@ -70,6 +71,7 @@ export default function CollectionScreen() {
       await syncCollection(username);
     } catch (error) {
       console.error('[Collection] Refresh sync error:', error);
+      showToast('Sync failed — showing cached data');
     }
     await loadFirstPage();
     setRefreshing(false);
@@ -95,11 +97,15 @@ export default function CollectionScreen() {
     })();
   }, [username, loadFirstPage]);
 
-  // Reload data when sync completes
+  // Reload data when sync completes, show toast on sync error (once)
+  const prevSyncStatus = useRef(syncStatus);
   useEffect(() => {
     if (syncStatus === 'complete') {
       loadFirstPage();
+    } else if (syncStatus === 'error' && prevSyncStatus.current !== 'error') {
+      showToast('Background sync failed');
     }
+    prevSyncStatus.current = syncStatus;
   }, [syncStatus, loadFirstPage]);
 
   const renderItem = useCallback(

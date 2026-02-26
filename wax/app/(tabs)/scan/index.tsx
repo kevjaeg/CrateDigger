@@ -16,6 +16,8 @@ import { rateLimiter } from '@/lib/api/rate-limiter';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { upsertCollectionItem } from '@/lib/db/queries';
 import { hapticSuccess, hapticLight } from '@/lib/haptics';
+import { showToast } from '@/lib/store/toast-store';
+import { friendlyErrorMessage } from '@/lib/api/client';
 
 const BLURHASH = 'L6Pj0^jE.AyE_3t7t7R**0o#DgR4';
 
@@ -105,6 +107,7 @@ export default function ScanScreen() {
         router.push(`/release/${item.id}`);
       } catch (e) {
         console.error('[Scan] Add to collection failed:', e);
+        showToast(friendlyErrorMessage(e));
         setAddingId(null);
       }
     },

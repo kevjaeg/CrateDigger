@@ -9,8 +9,10 @@ import 'react-native-reanimated';
 import { View, ActivityIndicator } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from '@/lib/store/auth-store';
-import { loadStoredAuth } from '@/lib/api/client';
+import { loadStoredAuth, NetworkError } from '@/lib/api/client';
 import { api } from '@/lib/api/endpoints';
+import Toast from '@/components/toast';
+import OfflineBanner from '@/components/offline-banner';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -88,8 +90,12 @@ function RootLayoutNav() {
             accessTokenSecret: stored.accessTokenSecret,
           });
         }
-      } catch {
-        // Stored auth is invalid or network error — show login screen
+      } catch (e) {
+        // Network error — still show login (cached data unavailable without auth)
+        // Auth errors — show login
+        if (e instanceof NetworkError) {
+          console.log('[Auth] Offline during restore — showing login');
+        }
       } finally {
         setIsReady(true);
       }
@@ -106,24 +112,28 @@ function RootLayoutNav() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      {isAuthenticated ? (
-        <>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen
-            name="release/[id]"
-            options={{
-              headerShown: true,
-              headerStyle: { backgroundColor: '#0a0a0a' },
-              headerTintColor: '#f5f5f5',
-              headerTitle: '',
-              presentation: 'card',
-            }}
-          />
-        </>
-      ) : (
-        <Stack.Screen name="login" />
-      )}
-    </Stack>
+    <View className="flex-1">
+      <OfflineBanner />
+      <Stack screenOptions={{ headerShown: false }}>
+        {isAuthenticated ? (
+          <>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen
+              name="release/[id]"
+              options={{
+                headerShown: true,
+                headerStyle: { backgroundColor: '#0a0a0a' },
+                headerTintColor: '#f5f5f5',
+                headerTitle: '',
+                presentation: 'card',
+              }}
+            />
+          </>
+        ) : (
+          <Stack.Screen name="login" />
+        )}
+      </Stack>
+      <Toast />
+    </View>
   );
 }
