@@ -19,6 +19,7 @@ import {
   isInWantlist,
   upsertCollectionItem,
   deleteCollectionItem,
+  upsertWantlistItem,
   deleteWantlistItem,
 } from '@/lib/db/queries';
 import { SkeletonReleaseDetail } from '@/components/skeleton';
@@ -143,10 +144,28 @@ export default function ReleaseDetailScreen() {
         setInWantlist(false);
         hapticWarning();
       } else {
+        if (!release) return;
         await rateLimiter.schedule(
           () => api.addToWantlist(username, releaseId),
           1
         );
+        await upsertWantlistItem({
+          id: releaseId,
+          rating: 0,
+          date_added: new Date().toISOString(),
+          basic_information: {
+            id: releaseId,
+            title: release.title,
+            year: release.year,
+            thumb: release.images?.[0]?.uri150 ?? '',
+            cover_image: heroImage(release),
+            genres: release.genres,
+            styles: release.styles,
+            formats: release.formats,
+            labels: release.labels,
+            artists: release.artists,
+          },
+        });
         setInWantlist(true);
         hapticSuccess();
       }

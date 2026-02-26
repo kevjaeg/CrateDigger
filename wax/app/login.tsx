@@ -72,7 +72,7 @@ export default function LoginScreen() {
         });
       } catch (err) {
         console.error('OAuth callback error:', err);
-        setError(err instanceof Error ? err.message : String(err));
+        setError('Login failed. Please try again.');
       } finally {
         setLoading(false);
         WebBrowser.dismissBrowser();
@@ -98,7 +98,7 @@ export default function LoginScreen() {
       );
     } catch (err) {
       console.error('Login error:', err);
-      setError(err instanceof Error ? err.message : String(err));
+      setError('Login failed. Please try again.');
       setLoading(false);
     }
   }
