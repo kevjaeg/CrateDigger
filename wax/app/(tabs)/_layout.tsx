@@ -47,6 +47,7 @@ export default function TabLayout() {
         name="scan"
         options={{
           title: 'Scan',
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="scan-outline" size={size} color={color} />
           ),
