@@ -9,19 +9,30 @@ import {
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@/lib/store/auth-store';
+import { useUIStore, type ColorScheme } from '@/lib/store/ui-store';
 import { api, type DiscogsCollectionValue } from '@/lib/api/endpoints';
 import { rateLimiter } from '@/lib/api/rate-limiter';
 import { clearStoredAuth } from '@/lib/api/client';
 import { getCachedStats } from '@/lib/db/queries';
 import type { CollectionStats } from '@/lib/sync/stats-computer';
+import { useColors } from '@/lib/theme';
 import { SkeletonProfile } from '@/components/skeleton';
 
 const BLURHASH = 'L6Pj0^jE.AyE_3t7t7R**0o#DgR4';
+
+const THEME_OPTIONS: { key: ColorScheme; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { key: 'dark', label: 'Dark', icon: 'moon-outline' },
+  { key: 'light', label: 'Light', icon: 'sunny-outline' },
+  { key: 'system', label: 'System', icon: 'phone-portrait-outline' },
+];
 
 export default function ProfileScreen() {
   const username = useAuthStore((s) => s.username);
   const avatarUrl = useAuthStore((s) => s.avatarUrl);
   const clearAuth = useAuthStore((s) => s.clearAuth);
+  const colorScheme = useUIStore((s) => s.colorScheme);
+  const setColorScheme = useUIStore((s) => s.setColorScheme);
+  const c = useColors();
 
   const [stats, setStats] = useState<CollectionStats | null>(null);
   const [collectionValue, setCollectionValue] =
@@ -36,7 +47,6 @@ export default function ProfileScreen() {
 
     let cancelled = false;
 
-    // Load local stats independently from API call
     getCachedStats('collection_stats')
       .then((cached) => {
         if (!cancelled && cached) setStats(cached as CollectionStats);
@@ -46,7 +56,6 @@ export default function ProfileScreen() {
         if (!cancelled) setLoading(false);
       });
 
-    // Fetch collection value from API independently
     rateLimiter
       .schedule(() => api.getCollectionValue(username), 2)
       .then((value) => {
@@ -78,7 +87,7 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-[#0a0a0a]">
+    <ScrollView style={{ flex: 1, backgroundColor: c.bg }}>
       {/* Profile Header */}
       <View className="items-center pt-8 pb-6 px-4">
         {avatarUrl ? (
@@ -90,23 +99,23 @@ export default function ProfileScreen() {
             style={{ width: 80, height: 80, borderRadius: 40 }}
           />
         ) : (
-          <View className="w-20 h-20 rounded-full bg-[#141414] items-center justify-center">
-            <Ionicons name="person" size={36} color="#6b6b6b" />
+          <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="person" size={36} color={c.textMuted} />
           </View>
         )}
-        <Text className="text-white text-xl font-bold mt-3">{username}</Text>
+        <Text style={{ color: c.text, fontSize: 20, fontWeight: 'bold', marginTop: 12 }}>{username}</Text>
       </View>
 
       {/* Collection Value */}
       {collectionValue && (
-        <View className="mx-4 p-4 bg-[#141414] rounded-xl mb-4">
-          <Text className="text-[#6b6b6b] text-xs uppercase tracking-wider mb-3">
+        <View style={{ marginHorizontal: 16, padding: 16, backgroundColor: c.card, borderRadius: 12, marginBottom: 16 }}>
+          <Text style={{ color: c.textMuted, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
             Collection Value
           </Text>
           <View className="flex-row justify-between">
-            <ValueBlock label="Min" value={collectionValue.minimum} />
-            <ValueBlock label="Median" value={collectionValue.median} />
-            <ValueBlock label="Max" value={collectionValue.maximum} />
+            <ValueBlock label="Min" value={collectionValue.minimum} c={c} />
+            <ValueBlock label="Median" value={collectionValue.median} c={c} />
+            <ValueBlock label="Max" value={collectionValue.maximum} c={c} />
           </View>
         </View>
       )}
@@ -114,26 +123,26 @@ export default function ProfileScreen() {
       {/* Quick Stats */}
       {stats && (
         <View className="flex-row mx-4 mb-4 gap-3">
-          <View className="flex-1 bg-[#141414] rounded-xl p-4 items-center">
-            <Text className="text-white text-2xl font-bold">
+          <View style={{ flex: 1, backgroundColor: c.card, borderRadius: 12, padding: 16, alignItems: 'center' }}>
+            <Text style={{ color: c.text, fontSize: 24, fontWeight: 'bold' }}>
               {stats.totalRecords}
             </Text>
-            <Text className="text-[#6b6b6b] text-xs mt-1">Records</Text>
+            <Text style={{ color: c.textMuted, fontSize: 12, marginTop: 4 }}>Records</Text>
           </View>
           {stats.oldestRecord && (
-            <View className="flex-1 bg-[#141414] rounded-xl p-4 items-center">
-              <Text className="text-white text-2xl font-bold">
+            <View style={{ flex: 1, backgroundColor: c.card, borderRadius: 12, padding: 16, alignItems: 'center' }}>
+              <Text style={{ color: c.text, fontSize: 24, fontWeight: 'bold' }}>
                 {stats.oldestRecord.year}
               </Text>
-              <Text className="text-[#6b6b6b] text-xs mt-1">Oldest</Text>
+              <Text style={{ color: c.textMuted, fontSize: 12, marginTop: 4 }}>Oldest</Text>
             </View>
           )}
           {stats.newestRecord && (
-            <View className="flex-1 bg-[#141414] rounded-xl p-4 items-center">
-              <Text className="text-white text-2xl font-bold">
+            <View style={{ flex: 1, backgroundColor: c.card, borderRadius: 12, padding: 16, alignItems: 'center' }}>
+              <Text style={{ color: c.text, fontSize: 24, fontWeight: 'bold' }}>
                 {stats.newestRecord.year}
               </Text>
-              <Text className="text-[#6b6b6b] text-xs mt-1">Newest</Text>
+              <Text style={{ color: c.textMuted, fontSize: 12, marginTop: 4 }}>Newest</Text>
             </View>
           )}
         </View>
@@ -141,47 +150,35 @@ export default function ProfileScreen() {
 
       {/* Genre Breakdown */}
       {stats && stats.genres.length > 0 && (
-        <StatsSection title="Genres">
+        <StatsSection title="Genres" c={c}>
           {stats.genres.map((g) => (
-            <HorizontalBar
-              key={g.genre}
-              label={g.genre}
-              count={g.count}
-              percentage={g.percentage}
-              color="#c4882a"
-            />
+            <HorizontalBar key={g.genre} label={g.genre} count={g.count} percentage={g.percentage} color="#c4882a" c={c} />
           ))}
         </StatsSection>
       )}
 
       {/* Decade Distribution */}
       {stats && stats.decades.length > 0 && (
-        <StatsSection title="Decades">
+        <StatsSection title="Decades" c={c}>
           {stats.decades.map((d) => (
-            <HorizontalBar
-              key={d.decade}
-              label={d.decade}
-              count={d.count}
-              percentage={d.percentage}
-              color="#6b8fbd"
-            />
+            <HorizontalBar key={d.decade} label={d.decade} count={d.count} percentage={d.percentage} color="#6b8fbd" c={c} />
           ))}
         </StatsSection>
       )}
 
       {/* Top Labels */}
       {stats && stats.topLabels.length > 0 && (
-        <StatsSection title="Top Labels">
+        <StatsSection title="Top Labels" c={c}>
           {stats.topLabels.map((l, i) => (
             <View
               key={l.label}
-              className="flex-row items-center py-2 border-b border-[#1a1a1a]"
+              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.cardAlt }}
             >
-              <Text className="text-[#6b6b6b] text-sm w-8">{i + 1}</Text>
-              <Text className="text-white text-sm flex-1" numberOfLines={1}>
+              <Text style={{ color: c.textMuted, fontSize: 14, width: 32 }}>{i + 1}</Text>
+              <Text style={{ color: c.text, fontSize: 14, flex: 1 }} numberOfLines={1}>
                 {l.label}
               </Text>
-              <Text className="text-[#6b6b6b] text-sm">{l.count}</Text>
+              <Text style={{ color: c.textMuted, fontSize: 14 }}>{l.count}</Text>
             </View>
           ))}
         </StatsSection>
@@ -189,48 +186,77 @@ export default function ProfileScreen() {
 
       {/* Format Breakdown */}
       {stats && stats.formats.length > 0 && (
-        <StatsSection title="Formats">
+        <StatsSection title="Formats" c={c}>
           {stats.formats.map((f) => (
-            <HorizontalBar
-              key={f.format}
-              label={f.format}
-              count={f.count}
-              percentage={f.percentage}
-              color="#8b6fad"
-            />
+            <HorizontalBar key={f.format} label={f.format} count={f.count} percentage={f.percentage} color="#8b6fad" c={c} />
           ))}
         </StatsSection>
       )}
 
       {/* Collection Growth */}
       {stats && stats.growth.length > 1 && (
-        <StatsSection title="Growth">
-          <GrowthChart data={stats.growth} />
+        <StatsSection title="Growth" c={c}>
+          <GrowthChart data={stats.growth} c={c} />
         </StatsSection>
       )}
 
-      {/* Settings */}
+      {/* Theme Toggle */}
       <View className="mx-4 mt-4 mb-2">
-        <Text className="text-[#6b6b6b] text-xs uppercase tracking-wider mb-3">
+        <Text style={{ color: c.textMuted, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
+          Appearance
+        </Text>
+      </View>
+      <View style={{ marginHorizontal: 16, flexDirection: 'row', backgroundColor: c.card, borderRadius: 12, padding: 4, marginBottom: 16 }}>
+        {THEME_OPTIONS.map((opt) => (
+          <Pressable
+            key={opt.key}
+            onPress={() => setColorScheme(opt.key)}
+            style={{
+              flex: 1,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              paddingVertical: 10,
+              borderRadius: 8,
+              gap: 6,
+              backgroundColor: colorScheme === opt.key ? c.accent : 'transparent',
+            }}
+          >
+            <Ionicons
+              name={opt.icon}
+              size={16}
+              color={colorScheme === opt.key ? '#fff' : c.textSecondary}
+            />
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: '600',
+                color: colorScheme === opt.key ? '#fff' : c.textSecondary,
+              }}
+            >
+              {opt.label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {/* Settings */}
+      <View className="mx-4 mt-2 mb-2">
+        <Text style={{ color: c.textMuted, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
           Settings
         </Text>
       </View>
 
-      <View className="mx-4 bg-[#141414] rounded-xl overflow-hidden mb-4">
-        <SettingsRow
-          icon="log-out-outline"
-          label="Log Out"
-          onPress={handleLogout}
-          destructive
-        />
+      <View style={{ marginHorizontal: 16, backgroundColor: c.card, borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
+        <SettingsRow icon="log-out-outline" label="Log Out" onPress={handleLogout} destructive c={c} />
       </View>
 
       {/* Attribution */}
       <View className="items-center pb-12 px-4">
-        <Text className="text-[#6b6b6b] text-xs text-center">
+        <Text style={{ color: c.textMuted, fontSize: 12, textAlign: 'center' }}>
           Powered by the Discogs API
         </Text>
-        <Text className="text-[#6b6b6b] text-xs text-center mt-1">
+        <Text style={{ color: c.textMuted, fontSize: 12, textAlign: 'center', marginTop: 4 }}>
           Wax is not affiliated with Discogs
         </Text>
       </View>
@@ -240,57 +266,40 @@ export default function ProfileScreen() {
 
 // --- Sub-components ---
 
-function ValueBlock({ label, value }: { label: string; value: string }) {
+function ValueBlock({ label, value, c }: { label: string; value: string; c: ReturnType<typeof useColors> }) {
   return (
     <View className="items-center flex-1">
-      <Text className="text-white text-base font-semibold">{value}</Text>
-      <Text className="text-[#6b6b6b] text-xs mt-0.5">{label}</Text>
+      <Text style={{ color: c.text, fontSize: 16, fontWeight: '600' }}>{value}</Text>
+      <Text style={{ color: c.textMuted, fontSize: 12, marginTop: 2 }}>{label}</Text>
     </View>
   );
 }
 
-function StatsSection({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+function StatsSection({ title, children, c }: { title: string; children: React.ReactNode; c: ReturnType<typeof useColors> }) {
   return (
     <View className="mx-4 mb-4">
-      <Text className="text-[#6b6b6b] text-xs uppercase tracking-wider mb-3">
+      <Text style={{ color: c.textMuted, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
         {title}
       </Text>
-      <View className="bg-[#141414] rounded-xl p-4">{children}</View>
+      <View style={{ backgroundColor: c.card, borderRadius: 12, padding: 16 }}>{children}</View>
     </View>
   );
 }
 
-function HorizontalBar({
-  label,
-  count,
-  percentage,
-  color,
-}: {
-  label: string;
-  count: number;
-  percentage: number;
-  color: string;
-}) {
+function HorizontalBar({ label, count, percentage, color, c }: { label: string; count: number; percentage: number; color: string; c: ReturnType<typeof useColors> }) {
   return (
     <View className="mb-3">
       <View className="flex-row justify-between mb-1">
-        <Text className="text-white text-sm" numberOfLines={1}>
-          {label}
-        </Text>
-        <Text className="text-[#6b6b6b] text-xs ml-2">
+        <Text style={{ color: c.text, fontSize: 14 }} numberOfLines={1}>{label}</Text>
+        <Text style={{ color: c.textMuted, fontSize: 12, marginLeft: 8 }}>
           {count} ({Math.round(percentage)}%)
         </Text>
       </View>
-      <View className="h-2 bg-[#0a0a0a] rounded-full overflow-hidden">
+      <View style={{ height: 8, backgroundColor: c.bg, borderRadius: 999, overflow: 'hidden' }}>
         <View
-          className="h-2 rounded-full"
           style={{
+            height: 8,
+            borderRadius: 999,
             width: `${Math.max(percentage, 2)}%`,
             backgroundColor: color,
           }}
@@ -300,13 +309,8 @@ function HorizontalBar({
   );
 }
 
-function GrowthChart({
-  data,
-}: {
-  data: { month: string; count: number; cumulative: number }[];
-}) {
+function GrowthChart({ data, c }: { data: { month: string; count: number; cumulative: number }[]; c: ReturnType<typeof useColors> }) {
   const totalRecords = data[data.length - 1]?.cumulative ?? 1;
-  // Show last 12 months max
   const recent = data.slice(-12);
   const maxMonthlyCount = Math.max(...recent.map((d) => d.count), 1);
 
@@ -319,59 +323,33 @@ function GrowthChart({
             <View
               key={item.month}
               className="flex-1 rounded-t"
-              style={{
-                height: Math.min(height, 80),
-                backgroundColor: '#c4882a',
-              }}
+              style={{ height: Math.min(height, 80), backgroundColor: c.accent }}
             />
           );
         })}
       </View>
       <View className="flex-row justify-between mt-2">
-        <Text className="text-[#6b6b6b] text-[10px]">
-          {recent[0]?.month}
-        </Text>
-        <Text className="text-[#6b6b6b] text-[10px]">
-          {recent[recent.length - 1]?.month}
-        </Text>
+        <Text style={{ color: c.textMuted, fontSize: 10 }}>{recent[0]?.month}</Text>
+        <Text style={{ color: c.textMuted, fontSize: 10 }}>{recent[recent.length - 1]?.month}</Text>
       </View>
-      <Text className="text-[#6b6b6b] text-xs mt-2 text-center">
+      <Text style={{ color: c.textMuted, fontSize: 12, marginTop: 8, textAlign: 'center' }}>
         {totalRecords} total records
       </Text>
     </View>
   );
 }
 
-function SettingsRow({
-  icon,
-  label,
-  onPress,
-  destructive,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-  destructive?: boolean;
-}) {
+function SettingsRow({ icon, label, onPress, destructive, c }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; destructive?: boolean; c: ReturnType<typeof useColors> }) {
   return (
     <Pressable
       onPress={onPress}
-      className="flex-row items-center px-4 py-3.5 active:bg-[#1a1a1a]"
+      style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 }}
     >
-      <Ionicons
-        name={icon}
-        size={20}
-        color={destructive ? '#ef4444' : '#a0a0a0'}
-      />
-      <Text
-        className={`text-base ml-3 ${
-          destructive ? 'text-red-400' : 'text-white'
-        }`}
-      >
+      <Ionicons name={icon} size={20} color={destructive ? c.danger : c.textSecondary} />
+      <Text style={{ fontSize: 16, marginLeft: 12, color: destructive ? c.danger : c.text, flex: 1 }}>
         {label}
       </Text>
-      <View className="flex-1" />
-      <Ionicons name="chevron-forward" size={16} color="#2a2a2a" />
+      <Ionicons name="chevron-forward" size={16} color={c.border} />
     </Pressable>
   );
 }

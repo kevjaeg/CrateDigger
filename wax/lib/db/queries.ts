@@ -89,10 +89,23 @@ export async function upsertCollectionBatch(items: DiscogsCollectionItem[]): Pro
   });
 }
 
+type SortBy = 'dateAdded' | 'title' | 'artist' | 'year';
+
+function sortClause(sortBy: SortBy): string {
+  switch (sortBy) {
+    case 'title': return 'ORDER BY title COLLATE NOCASE ASC';
+    case 'artist': return 'ORDER BY artist COLLATE NOCASE ASC';
+    case 'year': return 'ORDER BY year DESC';
+    case 'dateAdded':
+    default: return 'ORDER BY date_added DESC';
+  }
+}
+
 export async function getCollectionPage(
   folderId: number | null,
   page: number,
-  perPage: number
+  perPage: number,
+  sortBy: SortBy = 'dateAdded'
 ): Promise<{ items: CollectionRow[]; total: number }> {
   const db = await getDatabase();
   const whereClause = folderId !== null && folderId !== 0
@@ -106,7 +119,7 @@ export async function getCollectionPage(
   );
 
   const items = await db.getAllAsync<CollectionRow>(
-    `SELECT * FROM collection_items ${whereClause} ORDER BY date_added DESC LIMIT ? OFFSET ?`,
+    `SELECT * FROM collection_items ${whereClause} ${sortClause(sortBy)} LIMIT ? OFFSET ?`,
     [...params, perPage, (page - 1) * perPage]
   );
 
@@ -119,6 +132,11 @@ export async function getCollectionItemByRelease(releaseId: number): Promise<Col
     'SELECT * FROM collection_items WHERE release_id = ?',
     [releaseId]
   );
+}
+
+export async function updateCollectionRating(instanceId: number, rating: number): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync('UPDATE collection_items SET rating = ? WHERE instance_id = ?', [rating, instanceId]);
 }
 
 export async function deleteCollectionItem(instanceId: number): Promise<void> {
@@ -199,7 +217,8 @@ export async function upsertWantlistBatch(items: DiscogsWantlistItem[]): Promise
 
 export async function getWantlistPage(
   page: number,
-  perPage: number
+  perPage: number,
+  sortBy: SortBy = 'dateAdded'
 ): Promise<{ items: CollectionRow[]; total: number }> {
   const db = await getDatabase();
 
@@ -208,7 +227,7 @@ export async function getWantlistPage(
   );
 
   const items = await db.getAllAsync<CollectionRow>(
-    'SELECT id as instance_id, release_id, 0 as folder_id, title, artist, year, \'\' as genres, \'\' as styles, \'\' as labels, \'\' as formats, thumb_url, thumb_url as cover_url, rating, date_added, notes FROM wantlist_items ORDER BY date_added DESC LIMIT ? OFFSET ?',
+    `SELECT id as instance_id, release_id, 0 as folder_id, title, artist, year, '' as genres, '' as styles, '' as labels, '' as formats, thumb_url, thumb_url as cover_url, rating, date_added, notes FROM wantlist_items ${sortClause(sortBy)} LIMIT ? OFFSET ?`,
     [perPage, (page - 1) * perPage]
   );
 

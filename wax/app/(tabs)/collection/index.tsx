@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, ActivityIndicator, Pressable } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { useSyncStore } from '@/lib/store/sync-store';
 import { useAuthStore } from '@/lib/store/auth-store';
+import { useUIStore, type SortBy } from '@/lib/store/ui-store';
 import { getCollectionPage, type CollectionRow } from '@/lib/db/queries';
 import { syncCollection, isSyncStale } from '@/lib/sync/collection-sync';
+import { useColors } from '@/lib/theme';
 import ReleaseCard from '@/components/release-card';
 import EmptyState from '@/components/empty-state';
 import { SkeletonGrid } from '@/components/skeleton';
@@ -13,12 +16,22 @@ import { showToast } from '@/lib/store/toast-store';
 
 const PAGE_SIZE = 50;
 
+const SORT_OPTIONS: { key: SortBy; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { key: 'dateAdded', label: 'Recent', icon: 'time-outline' },
+  { key: 'artist', label: 'Artist', icon: 'person-outline' },
+  { key: 'title', label: 'Title', icon: 'text-outline' },
+  { key: 'year', label: 'Year', icon: 'calendar-outline' },
+];
+
 export default function CollectionScreen() {
   const username = useAuthStore((s) => s.username);
   const syncStatus = useSyncStore((s) => s.status);
   const syncedItems = useSyncStore((s) => s.syncedItems);
   const totalItems = useSyncStore((s) => s.totalItems);
   const progress = useSyncStore((s) => s.progress);
+  const sortBy = useUIStore((s) => s.sortBy);
+  const setSortBy = useUIStore((s) => s.setSortBy);
+  const c = useColors();
 
   const [items, setItems] = useState<CollectionRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -29,11 +42,10 @@ export default function CollectionScreen() {
 
   const hasCheckedStale = useRef(false);
 
-  // Load initial page
   const loadFirstPage = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await getCollectionPage(null, 1, PAGE_SIZE);
+      const result = await getCollectionPage(null, 1, PAGE_SIZE, sortBy);
       setItems(result.items);
       setTotal(result.total);
       setPage(1);
@@ -42,9 +54,8 @@ export default function CollectionScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sortBy]);
 
-  // Load more pages
   const loadMore = useCallback(async () => {
     if (loadingMore) return;
     const loaded = items.length;
@@ -53,7 +64,7 @@ export default function CollectionScreen() {
     setLoadingMore(true);
     try {
       const nextPage = page + 1;
-      const result = await getCollectionPage(null, nextPage, PAGE_SIZE);
+      const result = await getCollectionPage(null, nextPage, PAGE_SIZE, sortBy);
       setItems((prev) => [...prev, ...result.items]);
       setTotal(result.total);
       setPage(nextPage);
@@ -62,9 +73,8 @@ export default function CollectionScreen() {
     } finally {
       setLoadingMore(false);
     }
-  }, [items.length, total, page, loadingMore]);
+  }, [items.length, total, page, loadingMore, sortBy]);
 
-  // Pull-to-refresh
   const handleRefresh = useCallback(async () => {
     if (!username) return;
     setRefreshing(true);
@@ -78,14 +88,12 @@ export default function CollectionScreen() {
     setRefreshing(false);
   }, [username, loadFirstPage]);
 
-  // Reload when tab is focused (picks up adds/removes from other screens)
   useFocusEffect(
     useCallback(() => {
       loadFirstPage();
     }, [loadFirstPage])
   );
 
-  // Check staleness on mount and trigger background sync
   useEffect(() => {
     if (hasCheckedStale.current || !username) return;
     hasCheckedStale.current = true;
@@ -100,7 +108,6 @@ export default function CollectionScreen() {
     })();
   }, [username, loadFirstPage]);
 
-  // Reload data when sync completes, show toast on sync error (once)
   const prevSyncStatus = useRef(syncStatus);
   useEffect(() => {
     if (syncStatus === 'complete') {
@@ -125,32 +132,29 @@ export default function CollectionScreen() {
     if (!loadingMore) return null;
     return (
       <View className="py-4">
-        <ActivityIndicator color="#c4882a" />
+        <ActivityIndicator color={c.accent} />
       </View>
     );
-  }, [loadingMore]);
+  }, [loadingMore, c.accent]);
 
-  // Loading state — skeleton grid instead of spinner
   if (loading) {
     return <SkeletonGrid />;
   }
 
-  // Empty + syncing
   if (items.length === 0 && syncStatus === 'syncing') {
     return (
-      <View className="flex-1 bg-[#0a0a0a] items-center justify-center">
-        <ActivityIndicator size="large" color="#c4882a" />
-        <Text className="text-[#a0a0a0] text-base mt-4">
+      <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color={c.accent} />
+        <Text style={{ color: c.textSecondary, fontSize: 16, marginTop: 16 }}>
           Syncing your collection...
         </Text>
       </View>
     );
   }
 
-  // Empty + not syncing
   if (items.length === 0) {
     return (
-      <View className="flex-1 bg-[#0a0a0a]">
+      <View style={{ flex: 1, backgroundColor: c.bg }}>
         <EmptyState
           title="No records yet"
           subtitle="Start by searching for releases or scanning a barcode"
@@ -161,19 +165,52 @@ export default function CollectionScreen() {
   }
 
   return (
-    <View className="flex-1 bg-[#0a0a0a]">
-      {/* Animated sync progress bar */}
+    <View style={{ flex: 1, backgroundColor: c.bg }}>
       <SyncProgressBar
         progress={progress}
         visible={syncStatus === 'syncing' && totalItems > 0}
       />
       {syncStatus === 'syncing' && totalItems > 0 && (
         <View className="px-4 py-2">
-          <Text className="text-[#a0a0a0] text-xs">
+          <Text style={{ color: c.textSecondary, fontSize: 12 }}>
             Syncing {syncedItems} / {totalItems}
           </Text>
         </View>
       )}
+
+      {/* Sort Picker */}
+      <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 8, gap: 8 }}>
+        {SORT_OPTIONS.map((opt) => (
+          <Pressable
+            key={opt.key}
+            onPress={() => setSortBy(opt.key)}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              borderRadius: 16,
+              backgroundColor: sortBy === opt.key ? c.accent : c.card,
+              gap: 4,
+            }}
+          >
+            <Ionicons
+              name={opt.icon}
+              size={14}
+              color={sortBy === opt.key ? '#fff' : c.textSecondary}
+            />
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: '500',
+                color: sortBy === opt.key ? '#fff' : c.textSecondary,
+              }}
+            >
+              {opt.label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
 
       <FlatList
         data={items}

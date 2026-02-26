@@ -230,4 +230,16 @@ export const api = {
     discogsRequest<DiscogsMarketplaceStats>(
       `/marketplace/stats/${releaseId}`
     ),
+
+  editCollectionItemFields: (
+    username: string,
+    folderId: number,
+    releaseId: number,
+    instanceId: number,
+    fields: { rating?: number }
+  ) =>
+    discogsRequest<void>(
+      `/users/${username}/collection/folders/${folderId}/releases/${releaseId}/instances/${instanceId}`,
+      { method: 'POST', body: fields }
+    ),
 };

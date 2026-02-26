@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, ActivityIndicator, Pressable } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@/lib/store/auth-store';
+import { useUIStore, type SortBy } from '@/lib/store/ui-store';
 import { getWantlistPage, type CollectionRow } from '@/lib/db/queries';
 import { syncWantlist, isWantlistSyncStale } from '@/lib/sync/wantlist-sync';
+import { useColors } from '@/lib/theme';
 import ReleaseCard from '@/components/release-card';
 import EmptyState from '@/components/empty-state';
 import { SkeletonGrid } from '@/components/skeleton';
@@ -11,8 +14,18 @@ import { showToast } from '@/lib/store/toast-store';
 
 const PAGE_SIZE = 50;
 
+const SORT_OPTIONS: { key: SortBy; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { key: 'dateAdded', label: 'Recent', icon: 'time-outline' },
+  { key: 'artist', label: 'Artist', icon: 'person-outline' },
+  { key: 'title', label: 'Title', icon: 'text-outline' },
+  { key: 'year', label: 'Year', icon: 'calendar-outline' },
+];
+
 export default function WantlistScreen() {
   const username = useAuthStore((s) => s.username);
+  const sortBy = useUIStore((s) => s.sortBy);
+  const setSortBy = useUIStore((s) => s.setSortBy);
+  const c = useColors();
 
   const [items, setItems] = useState<CollectionRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -26,7 +39,7 @@ export default function WantlistScreen() {
   const loadFirstPage = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await getWantlistPage(1, PAGE_SIZE);
+      const result = await getWantlistPage(1, PAGE_SIZE, sortBy);
       setItems(result.items);
       setTotal(result.total);
       setPage(1);
@@ -35,14 +48,14 @@ export default function WantlistScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sortBy]);
 
   const loadMore = useCallback(async () => {
     if (loadingMore || items.length >= total) return;
     setLoadingMore(true);
     try {
       const nextPage = page + 1;
-      const result = await getWantlistPage(nextPage, PAGE_SIZE);
+      const result = await getWantlistPage(nextPage, PAGE_SIZE, sortBy);
       setItems((prev) => [...prev, ...result.items]);
       setTotal(result.total);
       setPage(nextPage);
@@ -51,7 +64,7 @@ export default function WantlistScreen() {
     } finally {
       setLoadingMore(false);
     }
-  }, [items.length, total, page, loadingMore]);
+  }, [items.length, total, page, loadingMore, sortBy]);
 
   const handleRefresh = useCallback(async () => {
     if (!username) return;
@@ -66,14 +79,12 @@ export default function WantlistScreen() {
     setRefreshing(false);
   }, [username, loadFirstPage]);
 
-  // Reload when tab is focused (picks up adds/removes from other screens)
   useFocusEffect(
     useCallback(() => {
       loadFirstPage();
     }, [loadFirstPage])
   );
 
-  // Sync on first mount if data is stale (background)
   useEffect(() => {
     if (hasSynced.current || !username) return;
     hasSynced.current = true;
@@ -101,10 +112,10 @@ export default function WantlistScreen() {
     if (!loadingMore) return null;
     return (
       <View className="py-4">
-        <ActivityIndicator color="#c4882a" />
+        <ActivityIndicator color={c.accent} />
       </View>
     );
-  }, [loadingMore]);
+  }, [loadingMore, c.accent]);
 
   if (loading) {
     return <SkeletonGrid />;
@@ -112,7 +123,7 @@ export default function WantlistScreen() {
 
   if (items.length === 0) {
     return (
-      <View className="flex-1 bg-[#0a0a0a]">
+      <View style={{ flex: 1, backgroundColor: c.bg }}>
         <EmptyState
           title="Your wantlist is empty"
           subtitle="Browse releases and tap the heart to add"
@@ -123,7 +134,41 @@ export default function WantlistScreen() {
   }
 
   return (
-    <View className="flex-1 bg-[#0a0a0a]">
+    <View style={{ flex: 1, backgroundColor: c.bg }}>
+      {/* Sort Picker */}
+      <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 8, gap: 8 }}>
+        {SORT_OPTIONS.map((opt) => (
+          <Pressable
+            key={opt.key}
+            onPress={() => setSortBy(opt.key)}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              borderRadius: 16,
+              backgroundColor: sortBy === opt.key ? c.accent : c.card,
+              gap: 4,
+            }}
+          >
+            <Ionicons
+              name={opt.icon}
+              size={14}
+              color={sortBy === opt.key ? '#fff' : c.textSecondary}
+            />
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: '500',
+                color: sortBy === opt.key ? '#fff' : c.textSecondary,
+              }}
+            >
+              {opt.label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
       <FlatList
         data={items}
         renderItem={renderItem}

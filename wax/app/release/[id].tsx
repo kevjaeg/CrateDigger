@@ -6,6 +6,7 @@ import {
   Pressable,
   useWindowDimensions,
   Linking,
+  Share,
 } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
@@ -21,11 +22,13 @@ import {
   deleteCollectionItem,
   upsertWantlistItem,
   deleteWantlistItem,
+  updateCollectionRating,
 } from '@/lib/db/queries';
 import { SkeletonReleaseDetail } from '@/components/skeleton';
-import { hapticSuccess, hapticWarning } from '@/lib/haptics';
+import { hapticSuccess, hapticWarning, hapticLight } from '@/lib/haptics';
 import { showToast } from '@/lib/store/toast-store';
 import { friendlyErrorMessage } from '@/lib/api/client';
+import { useColors } from '@/lib/theme';
 
 const BLURHASH = 'L6Pj0^jE.AyE_3t7t7R**0o#DgR4';
 
@@ -35,6 +38,7 @@ export default function ReleaseDetailScreen() {
   const isValidId = Number.isInteger(releaseId) && releaseId > 0;
   const { width } = useWindowDimensions();
   const username = useAuthStore((s) => s.username);
+  const c = useColors();
 
   // --- API data ---
   const {
@@ -59,24 +63,45 @@ export default function ReleaseDetailScreen() {
   const [instanceId, setInstanceId] = useState<number | null>(null);
   const [folderId, setFolderId] = useState<number>(1);
   const [inWantlist, setInWantlist] = useState(false);
+  const [userRating, setUserRating] = useState(0);
   const [mutating, setMutating] = useState(false);
 
   useEffect(() => {
     if (!isValidId) return;
-    // Reset before async reads to avoid stale state when navigating between releases
     setInCollection(false);
     setInstanceId(null);
     setFolderId(1);
     setInWantlist(false);
+    setUserRating(0);
     getCollectionItemByRelease(releaseId).then((row) => {
       if (row) {
         setInCollection(true);
         setInstanceId(row.instance_id);
         setFolderId(row.folder_id);
+        setUserRating(row.rating);
       }
     });
     isInWantlist(releaseId).then(setInWantlist);
   }, [releaseId, isValidId]);
+
+  // --- Rating ---
+  const handleRate = useCallback(async (stars: number) => {
+    if (!username || !inCollection || instanceId === null || mutating) return;
+    const newRating = stars === userRating ? 0 : stars; // tap same star to clear
+    setUserRating(newRating);
+    hapticLight();
+    try {
+      await rateLimiter.schedule(
+        () => api.editCollectionItemFields(username, folderId, releaseId, instanceId, { rating: newRating }),
+        1
+      );
+      await updateCollectionRating(instanceId, newRating);
+    } catch (e) {
+      console.error('[ReleaseDetail] Rating failed:', e);
+      showToast(friendlyErrorMessage(e));
+      setUserRating(userRating); // revert
+    }
+  }, [username, inCollection, instanceId, folderId, releaseId, userRating, mutating]);
 
   // --- Mutations ---
   const toggleCollection = useCallback(async () => {
@@ -92,6 +117,7 @@ export default function ReleaseDetailScreen() {
         await deleteCollectionItem(instanceId);
         setInCollection(false);
         setInstanceId(null);
+        setUserRating(0);
         hapticWarning();
       } else {
         if (!release) return;
@@ -175,7 +201,7 @@ export default function ReleaseDetailScreen() {
     } finally {
       setMutating(false);
     }
-  }, [username, mutating, inWantlist, releaseId]);
+  }, [username, mutating, inWantlist, releaseId, release]);
 
   // --- Helpers ---
   const artistText = release?.artists.map((a) => a.name).join(', ') ?? '';
@@ -184,11 +210,24 @@ export default function ReleaseDetailScreen() {
     .map((f) => [f.name, ...(f.descriptions ?? [])].join(' '))
     .join(', ');
 
+  // --- Share ---
+  const handleShare = useCallback(async () => {
+    if (!release) return;
+    try {
+      await Share.share({
+        message: `${release.title} by ${artistText}\n${release.uri}`,
+        title: release.title,
+      });
+    } catch (_) {
+      // user cancelled
+    }
+  }, [release, artistText]);
+
   // --- Loading ---
   if (isLoading) {
     return (
       <>
-        <HeaderRight uri={release?.uri} />
+        <HeaderRight uri={undefined} onShare={undefined} />
         <SkeletonReleaseDetail />
       </>
     );
@@ -198,10 +237,10 @@ export default function ReleaseDetailScreen() {
   if (error || !release) {
     return (
       <>
-        <HeaderRight uri={undefined} />
-        <View className="flex-1 bg-[#0a0a0a] items-center justify-center px-6">
-          <Ionicons name="alert-circle-outline" size={48} color="#a0a0a0" />
-          <Text className="text-[#a0a0a0] text-base mt-4 text-center">
+        <HeaderRight uri={undefined} onShare={undefined} />
+        <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
+          <Ionicons name="alert-circle-outline" size={48} color={c.textSecondary} />
+          <Text style={{ color: c.textSecondary, fontSize: 16, marginTop: 16, textAlign: 'center' }}>
             Could not load this release.
           </Text>
         </View>
@@ -211,8 +250,8 @@ export default function ReleaseDetailScreen() {
 
   return (
     <>
-      <HeaderRight uri={release.uri} />
-      <ScrollView className="flex-1 bg-[#0a0a0a]">
+      <HeaderRight uri={release.uri} onShare={handleShare} />
+      <ScrollView style={{ flex: 1, backgroundColor: c.bg }}>
         {/* Hero Cover Art */}
         <Image
           source={{ uri: primaryImageUri }}
@@ -224,9 +263,29 @@ export default function ReleaseDetailScreen() {
 
         {/* Title & Artist */}
         <View className="px-4 pt-4 pb-2">
-          <Text className="text-white text-2xl font-bold">{release.title}</Text>
-          <Text className="text-[#a0a0a0] text-base mt-1">{artistText}</Text>
+          <Text style={{ color: c.text, fontSize: 24, fontWeight: 'bold' }}>{release.title}</Text>
+          <Text style={{ color: c.textSecondary, fontSize: 16, marginTop: 4 }}>{artistText}</Text>
         </View>
+
+        {/* Rating (only when in collection) */}
+        {inCollection && (
+          <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 8, alignItems: 'center', gap: 8 }}>
+            <Text style={{ color: c.textMuted, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>
+              Your Rating
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 4 }}>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <Pressable key={star} onPress={() => handleRate(star)} hitSlop={6}>
+                  <Ionicons
+                    name={star <= userRating ? 'star' : 'star-outline'}
+                    size={22}
+                    color={star <= userRating ? c.accent : c.textMuted}
+                  />
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* Metadata Pills */}
         <ScrollView
@@ -235,55 +294,46 @@ export default function ReleaseDetailScreen() {
           contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
           className="py-2"
         >
-          {release.year > 0 && <Pill label={String(release.year)} />}
-          {release.country && <Pill label={release.country} />}
+          {release.year > 0 && <Pill label={String(release.year)} c={c} />}
+          {release.country && <Pill label={release.country} c={c} />}
           {release.genres.map((g) => (
-            <Pill key={g} label={g} />
+            <Pill key={g} label={g} c={c} />
           ))}
           {release.styles.map((s) => (
-            <Pill key={s} label={s} accent />
+            <Pill key={s} label={s} accent c={c} />
           ))}
-          {formatText && <Pill label={formatText} />}
+          {formatText && <Pill label={formatText} c={c} />}
         </ScrollView>
 
         {/* Community Stats */}
         <View className="flex-row px-4 py-3 gap-6">
-          <StatBlock
-            icon="people-outline"
-            value={release.community.have}
-            label="Have"
-          />
-          <StatBlock
-            icon="heart-outline"
-            value={release.community.want}
-            label="Want"
-          />
+          <StatBlock icon="people-outline" value={release.community.have} label="Have" c={c} />
+          <StatBlock icon="heart-outline" value={release.community.want} label="Want" c={c} />
           <StatBlock
             icon="star-outline"
             value={release.community.rating.average.toFixed(1)}
             label={`${release.community.rating.count} ratings`}
+            c={c}
           />
         </View>
 
         {/* Marketplace Price */}
         {(marketStats?.lowest_price || release.num_for_sale > 0) && (
-          <View className="mx-4 p-4 bg-[#141414] rounded-xl mb-2">
+          <View style={{ marginHorizontal: 16, padding: 16, backgroundColor: c.card, borderRadius: 12, marginBottom: 8 }}>
             <View className="flex-row items-center justify-between">
               <View>
-                <Text className="text-[#a0a0a0] text-xs uppercase tracking-wider">
+                <Text style={{ color: c.textSecondary, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1 }}>
                   Marketplace
                 </Text>
                 {marketStats?.lowest_price ? (
-                  <Text className="text-white text-lg font-semibold mt-1">
+                  <Text style={{ color: c.text, fontSize: 18, fontWeight: '600', marginTop: 4 }}>
                     from {formatPrice(marketStats.lowest_price.value, marketStats.lowest_price.currency)}
                   </Text>
                 ) : (
-                  <Text className="text-white text-lg font-semibold mt-1">
-                    --
-                  </Text>
+                  <Text style={{ color: c.text, fontSize: 18, fontWeight: '600', marginTop: 4 }}>--</Text>
                 )}
               </View>
-              <Text className="text-[#a0a0a0] text-sm">
+              <Text style={{ color: c.textSecondary, fontSize: 14 }}>
                 {release.num_for_sale} for sale
               </Text>
             </View>
@@ -293,14 +343,14 @@ export default function ReleaseDetailScreen() {
         {/* Labels */}
         {release.labels.length > 0 && (
           <View className="px-4 py-3">
-            <Text className="text-[#6b6b6b] text-xs uppercase tracking-wider mb-2">
+            <Text style={{ color: c.textMuted, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
               Label
             </Text>
             {release.labels.map((l, i) => (
               <View key={`${l.id}-${i}`} className="flex-row items-center mb-1">
-                <Text className="text-white text-sm">{l.name}</Text>
+                <Text style={{ color: c.text, fontSize: 14 }}>{l.name}</Text>
                 {l.catno && (
-                  <Text className="text-[#a0a0a0] text-sm ml-2">
+                  <Text style={{ color: c.textSecondary, fontSize: 14, marginLeft: 8 }}>
                     {l.catno}
                   </Text>
                 )}
@@ -312,22 +362,22 @@ export default function ReleaseDetailScreen() {
         {/* Tracklist */}
         {release.tracklist.length > 0 && (
           <View className="px-4 py-3">
-            <Text className="text-[#6b6b6b] text-xs uppercase tracking-wider mb-3">
+            <Text style={{ color: c.textMuted, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
               Tracklist
             </Text>
             {release.tracklist.map((track, i) => (
               <View
                 key={`${track.position}-${i}`}
-                className="flex-row items-center py-2 border-b border-[#1a1a1a]"
+                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.cardAlt }}
               >
-                <Text className="text-[#6b6b6b] text-sm w-10">
+                <Text style={{ color: c.textMuted, fontSize: 14, width: 40 }}>
                   {track.position}
                 </Text>
-                <Text className="text-white text-sm flex-1" numberOfLines={1}>
+                <Text style={{ color: c.text, fontSize: 14, flex: 1 }} numberOfLines={1}>
                   {track.title}
                 </Text>
                 {track.duration && (
-                  <Text className="text-[#6b6b6b] text-sm ml-2">
+                  <Text style={{ color: c.textMuted, fontSize: 14, marginLeft: 8 }}>
                     {track.duration}
                   </Text>
                 )}
@@ -341,16 +391,24 @@ export default function ReleaseDetailScreen() {
           <Pressable
             onPress={toggleCollection}
             disabled={mutating}
-            className={`rounded-2xl px-6 py-4 items-center flex-row justify-center gap-2 ${
-              inCollection ? 'bg-[#2a2a2a]' : 'bg-[#c4882a]'
-            } active:opacity-80`}
+            style={{
+              borderRadius: 16,
+              paddingHorizontal: 24,
+              paddingVertical: 16,
+              alignItems: 'center',
+              flexDirection: 'row',
+              justifyContent: 'center',
+              gap: 8,
+              backgroundColor: inCollection ? c.border : c.accent,
+              opacity: mutating ? 0.6 : 1,
+            }}
           >
             <Ionicons
               name={inCollection ? 'checkmark-circle' : 'add-circle-outline'}
               size={20}
               color="#fff"
             />
-            <Text className="text-white text-base font-semibold">
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
               {inCollection ? 'In Collection' : 'Add to Collection'}
             </Text>
           </Pressable>
@@ -358,26 +416,37 @@ export default function ReleaseDetailScreen() {
           <Pressable
             onPress={toggleWantlist}
             disabled={mutating}
-            className={`rounded-2xl px-6 py-4 items-center flex-row justify-center gap-2 ${
-              inWantlist ? 'bg-[#2a2a2a]' : 'bg-[#141414] border border-[#2a2a2a]'
-            } active:opacity-80`}
+            style={{
+              borderRadius: 16,
+              paddingHorizontal: 24,
+              paddingVertical: 16,
+              alignItems: 'center',
+              flexDirection: 'row',
+              justifyContent: 'center',
+              gap: 8,
+              backgroundColor: inWantlist ? c.border : c.card,
+              borderWidth: inWantlist ? 0 : 1,
+              borderColor: c.border,
+              opacity: mutating ? 0.6 : 1,
+            }}
           >
             <Ionicons
               name={inWantlist ? 'heart' : 'heart-outline'}
               size={20}
-              color={inWantlist ? '#c4882a' : '#a0a0a0'}
+              color={inWantlist ? c.accent : c.textSecondary}
             />
             <Text
-              className={`text-base font-semibold ${
-                inWantlist ? 'text-white' : 'text-[#a0a0a0]'
-              }`}
+              style={{
+                fontSize: 16,
+                fontWeight: '600',
+                color: inWantlist ? c.text : c.textSecondary,
+              }}
             >
               {inWantlist ? 'On Wantlist' : 'Add to Wantlist'}
             </Text>
           </Pressable>
         </View>
 
-        {/* Bottom Spacer */}
         <View className="h-12" />
       </ScrollView>
     </>
@@ -386,36 +455,49 @@ export default function ReleaseDetailScreen() {
 
 // --- Sub-components ---
 
-function HeaderRight({ uri }: { uri?: string }) {
+function HeaderRight({ uri, onShare }: { uri?: string; onShare?: (() => void) | undefined }) {
   return (
     <Stack.Screen
       options={{
-        headerRight: () =>
-          uri ? (
-            <Pressable
-              onPress={() => Linking.openURL(uri)}
-              className="mr-2 active:opacity-60"
-              hitSlop={8}
-            >
-              <Ionicons name="open-outline" size={22} color="#a0a0a0" />
-            </Pressable>
-          ) : null,
+        headerRight: () => (
+          <View style={{ flexDirection: 'row', gap: 12, marginRight: 8 }}>
+            {onShare && (
+              <Pressable onPress={onShare} hitSlop={8} style={{ opacity: 0.8 }}>
+                <Ionicons name="share-outline" size={22} color="#a0a0a0" />
+              </Pressable>
+            )}
+            {uri && (
+              <Pressable
+                onPress={() => Linking.openURL(uri)}
+                hitSlop={8}
+                style={{ opacity: 0.8 }}
+              >
+                <Ionicons name="open-outline" size={22} color="#a0a0a0" />
+              </Pressable>
+            )}
+          </View>
+        ),
       }}
     />
   );
 }
 
-function Pill({ label, accent }: { label: string; accent?: boolean }) {
+function Pill({ label, accent, c }: { label: string; accent?: boolean; c: ReturnType<typeof useColors> }) {
   return (
     <View
-      className={`px-3 py-1.5 rounded-full ${
-        accent ? 'bg-[#c4882a]/20' : 'bg-[#1a1a1a]'
-      }`}
+      style={{
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 999,
+        backgroundColor: accent ? c.accentMuted : c.cardAlt,
+      }}
     >
       <Text
-        className={`text-xs font-medium ${
-          accent ? 'text-[#c4882a]' : 'text-[#a0a0a0]'
-        }`}
+        style={{
+          fontSize: 12,
+          fontWeight: '500',
+          color: accent ? c.accent : c.textSecondary,
+        }}
       >
         {label}
       </Text>
@@ -427,16 +509,18 @@ function StatBlock({
   icon,
   value,
   label,
+  c,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   value: number | string;
   label: string;
+  c: ReturnType<typeof useColors>;
 }) {
   return (
     <View className="items-center">
-      <Ionicons name={icon} size={18} color="#a0a0a0" />
-      <Text className="text-white text-lg font-bold mt-1">{value}</Text>
-      <Text className="text-[#6b6b6b] text-xs">{label}</Text>
+      <Ionicons name={icon} size={18} color={c.textSecondary} />
+      <Text style={{ color: c.text, fontSize: 18, fontWeight: 'bold', marginTop: 4 }}>{value}</Text>
+      <Text style={{ color: c.textMuted, fontSize: 12 }}>{label}</Text>
     </View>
   );
 }
