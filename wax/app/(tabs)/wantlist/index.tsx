@@ -5,6 +5,7 @@ import { getWantlistPage, type CollectionRow } from '@/lib/db/queries';
 import { syncWantlist, isWantlistSyncStale } from '@/lib/sync/wantlist-sync';
 import ReleaseCard from '@/components/release-card';
 import EmptyState from '@/components/empty-state';
+import { SkeletonGrid } from '@/components/skeleton';
 
 const PAGE_SIZE = 50;
 
@@ -101,11 +102,7 @@ export default function WantlistScreen() {
   }, [loadingMore]);
 
   if (loading) {
-    return (
-      <View className="flex-1 bg-[#0a0a0a] items-center justify-center">
-        <ActivityIndicator size="large" color="#c4882a" />
-      </View>
-    );
+    return <SkeletonGrid />;
   }
 
   if (items.length === 0) {

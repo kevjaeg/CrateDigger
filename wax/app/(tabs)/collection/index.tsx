@@ -6,6 +6,8 @@ import { getCollectionPage, type CollectionRow } from '@/lib/db/queries';
 import { syncCollection, isSyncStale } from '@/lib/sync/collection-sync';
 import ReleaseCard from '@/components/release-card';
 import EmptyState from '@/components/empty-state';
+import { SkeletonGrid } from '@/components/skeleton';
+import SyncProgressBar from '@/components/sync-progress-bar';
 
 const PAGE_SIZE = 50;
 
@@ -119,13 +121,9 @@ export default function CollectionScreen() {
     );
   }, [loadingMore]);
 
-  // Loading state
+  // Loading state — skeleton grid instead of spinner
   if (loading) {
-    return (
-      <View className="flex-1 bg-[#0a0a0a] items-center justify-center">
-        <ActivityIndicator size="large" color="#c4882a" />
-      </View>
-    );
+    return <SkeletonGrid />;
   }
 
   // Empty + syncing
@@ -155,16 +153,11 @@ export default function CollectionScreen() {
 
   return (
     <View className="flex-1 bg-[#0a0a0a]">
-      {/* Sync progress bar */}
-      {syncStatus === 'syncing' && totalItems > 0 && (
-        <View className="h-1 bg-[#1a1a1a]">
-          <View
-            className="h-1 bg-[#c4882a]"
-            style={{ width: `${Math.round(progress * 100)}%` }}
-          />
-        </View>
-      )}
-
+      {/* Animated sync progress bar */}
+      <SyncProgressBar
+        progress={progress}
+        visible={syncStatus === 'syncing' && totalItems > 0}
+      />
       {syncStatus === 'syncing' && totalItems > 0 && (
         <View className="px-4 py-2">
           <Text className="text-[#a0a0a0] text-xs">

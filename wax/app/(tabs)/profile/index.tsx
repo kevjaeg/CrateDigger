@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   Pressable,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -15,6 +14,7 @@ import { rateLimiter } from '@/lib/api/rate-limiter';
 import { clearStoredAuth } from '@/lib/api/client';
 import { getCachedStats } from '@/lib/db/queries';
 import type { CollectionStats } from '@/lib/sync/stats-computer';
+import { SkeletonProfile } from '@/components/skeleton';
 
 const BLURHASH = 'L6Pj0^jE.AyE_3t7t7R**0o#DgR4';
 
@@ -74,11 +74,7 @@ export default function ProfileScreen() {
   }, [clearAuth]);
 
   if (loading && !stats) {
-    return (
-      <View className="flex-1 bg-[#0a0a0a] items-center justify-center">
-        <ActivityIndicator size="large" color="#c4882a" />
-      </View>
-    );
+    return <SkeletonProfile />;
   }
 
   return (

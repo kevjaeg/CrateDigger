@@ -15,6 +15,7 @@ import { api, type DiscogsSearchResult } from '@/lib/api/endpoints';
 import { rateLimiter } from '@/lib/api/rate-limiter';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { upsertCollectionItem } from '@/lib/db/queries';
+import { hapticSuccess, hapticLight } from '@/lib/haptics';
 
 const BLURHASH = 'L6Pj0^jE.AyE_3t7t7R**0o#DgR4';
 
@@ -37,6 +38,7 @@ export default function ScanScreen() {
     async (scanResult: { type: string; data: string }) => {
       if (scanLockedRef.current) return;
       scanLockedRef.current = true;
+      hapticLight();
 
       const code = scanResult.data;
       setScanState({ status: 'searching', barcode: code });
@@ -95,6 +97,7 @@ export default function ScanScreen() {
             artists: release.artists ?? [],
           },
         });
+        hapticSuccess();
         // Reset state before navigating so scanner is ready on back-navigation
         scanLockedRef.current = false;
         setScanState({ status: 'idle' });

@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   Pressable,
-  ActivityIndicator,
   useWindowDimensions,
   Linking,
 } from 'react-native';
@@ -22,6 +21,8 @@ import {
   deleteCollectionItem,
   deleteWantlistItem,
 } from '@/lib/db/queries';
+import { SkeletonReleaseDetail } from '@/components/skeleton';
+import { hapticSuccess, hapticWarning } from '@/lib/haptics';
 
 const BLURHASH = 'L6Pj0^jE.AyE_3t7t7R**0o#DgR4';
 
@@ -88,6 +89,7 @@ export default function ReleaseDetailScreen() {
         await deleteCollectionItem(instanceId);
         setInCollection(false);
         setInstanceId(null);
+        hapticWarning();
       } else {
         if (!release) return;
         const result = await rateLimiter.schedule(
@@ -116,6 +118,7 @@ export default function ReleaseDetailScreen() {
         setInCollection(true);
         setInstanceId(result.instance_id);
         setFolderId(1);
+        hapticSuccess();
       }
     } catch (e) {
       console.error('[ReleaseDetail] Collection toggle failed:', e);
@@ -135,12 +138,14 @@ export default function ReleaseDetailScreen() {
         );
         await deleteWantlistItem(releaseId);
         setInWantlist(false);
+        hapticWarning();
       } else {
         await rateLimiter.schedule(
           () => api.addToWantlist(username, releaseId),
           1
         );
         setInWantlist(true);
+        hapticSuccess();
       }
     } catch (e) {
       console.error('[ReleaseDetail] Wantlist toggle failed:', e);
@@ -161,9 +166,7 @@ export default function ReleaseDetailScreen() {
     return (
       <>
         <HeaderRight uri={release?.uri} />
-        <View className="flex-1 bg-[#0a0a0a] items-center justify-center">
-          <ActivityIndicator size="large" color="#c4882a" />
-        </View>
+        <SkeletonReleaseDetail />
       </>
     );
   }

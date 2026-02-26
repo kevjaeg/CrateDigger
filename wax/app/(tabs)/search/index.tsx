@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { api, type DiscogsSearchResult } from '@/lib/api/endpoints';
 import { rateLimiter } from '@/lib/api/rate-limiter';
+import { SkeletonSearchList } from '@/components/skeleton';
 
 const BLURHASH = 'L6Pj0^jE.AyE_3t7t7R**0o#DgR4';
 const DEBOUNCE_MS = 300;
@@ -212,11 +213,7 @@ export default function SearchScreen() {
         </View>
       )}
 
-      {hasQuery && isLoading && (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#c4882a" />
-        </View>
-      )}
+      {hasQuery && isLoading && <SkeletonSearchList />}
 
       {error && !hasResults && (
         <View className="flex-1 items-center justify-center px-6">
