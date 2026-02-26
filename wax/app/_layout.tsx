@@ -2,7 +2,7 @@ import '../global.css';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Stack, Redirect } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
@@ -115,24 +115,21 @@ function RootLayoutNav() {
     <View className="flex-1">
       <OfflineBanner />
       <Stack screenOptions={{ headerShown: false }}>
-        {isAuthenticated ? (
-          <>
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen
-              name="release/[id]"
-              options={{
-                headerShown: true,
-                headerStyle: { backgroundColor: '#0a0a0a' },
-                headerTintColor: '#f5f5f5',
-                headerTitle: '',
-                presentation: 'card',
-              }}
-            />
-          </>
-        ) : (
-          <Stack.Screen name="login" />
-        )}
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="login" />
+        <Stack.Screen
+          name="release/[id]"
+          options={{
+            headerShown: true,
+            headerStyle: { backgroundColor: '#0a0a0a' },
+            headerTintColor: '#f5f5f5',
+            headerTitle: '',
+            presentation: 'card',
+          }}
+        />
+        <Stack.Screen name="+not-found" />
       </Stack>
+      {!isAuthenticated && isReady && <Redirect href="/login" />}
       <Toast />
     </View>
   );

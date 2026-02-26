@@ -1,22 +1,86 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
-import { makeRedirectUri } from 'expo-auth-session';
+import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { useAuthStore } from '@/lib/store/auth-store';
 import {
   getRequestToken,
   getAccessToken,
   saveTokens,
+  type OAuthRequestToken,
 } from '@/lib/api/client';
 import { api } from '@/lib/api/endpoints';
 
-const CALLBACK_URL = makeRedirectUri({ scheme: 'wax' });
+// Works in both Expo Go (exp://...) and standalone builds (wax://...)
+const CALLBACK_URL = Linking.createURL('oauth');
 
 export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const setAuth = useAuthStore((s) => s.setAuth);
+  const pendingToken = useRef<OAuthRequestToken | null>(null);
+
+  // Listen for the OAuth callback deep link
+  useEffect(() => {
+    const sub = Linking.addEventListener('url', async (event) => {
+      const token = pendingToken.current;
+      if (!token) return;
+      pendingToken.current = null;
+
+      try {
+        // Parse verifier from callback URL
+        const url = new URL(event.url);
+        const verifier = url.searchParams.get('oauth_verifier');
+        if (!verifier) {
+          setError('No verifier received from Discogs.');
+          setLoading(false);
+          return;
+        }
+
+        // Exchange for access token
+        const accessTokenData = await getAccessToken(
+          token.oauth_token,
+          token.oauth_token_secret,
+          verifier
+        );
+
+        // Save tokens temporarily
+        await saveTokens(
+          accessTokenData.oauth_token,
+          accessTokenData.oauth_token_secret,
+          ''
+        );
+
+        // Fetch identity and profile
+        const identity = await api.getIdentity();
+        const profile = await api.getProfile(identity.username);
+
+        // Save tokens with real username
+        await saveTokens(
+          accessTokenData.oauth_token,
+          accessTokenData.oauth_token_secret,
+          identity.username
+        );
+
+        // Update Zustand auth state → triggers redirect to (tabs)
+        setAuth({
+          username: identity.username,
+          avatarUrl: profile.avatar_url,
+          accessToken: accessTokenData.oauth_token,
+          accessTokenSecret: accessTokenData.oauth_token_secret,
+        });
+      } catch (err) {
+        console.error('OAuth callback error:', err);
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setLoading(false);
+        WebBrowser.dismissBrowser();
+      }
+    });
+
+    return () => sub.remove();
+  }, [setAuth]);
 
   async function handleLogin() {
     setLoading(true);
@@ -25,67 +89,16 @@ export default function LoginScreen() {
     try {
       // Step 1: Get request token
       const requestToken = await getRequestToken(CALLBACK_URL);
+      pendingToken.current = requestToken;
 
-      // Step 2: Open Discogs authorize page in system browser
-      const result = await WebBrowser.openAuthSessionAsync(
+      // Step 2: Open Discogs authorize page — don't await, the link listener handles the rest
+      await WebBrowser.openBrowserAsync(
         `https://discogs.com/oauth/authorize?oauth_token=${requestToken.oauth_token}`,
-        CALLBACK_URL
+        { showInRecents: true }
       );
-
-      if (result.type !== 'success') {
-        setError('Authorization was cancelled.');
-        setLoading(false);
-        return;
-      }
-
-      // Step 3: Extract verifier from callback URL
-      const url = new URL(result.url);
-      const verifier = url.searchParams.get('oauth_verifier');
-      if (!verifier) {
-        setError('No verifier received from Discogs.');
-        setLoading(false);
-        return;
-      }
-
-      // Step 4: Exchange for access token
-      const accessTokenData = await getAccessToken(
-        requestToken.oauth_token,
-        requestToken.oauth_token_secret,
-        verifier
-      );
-
-      // Step 5: Save tokens temporarily (username set after identity call)
-      await saveTokens(
-        accessTokenData.oauth_token,
-        accessTokenData.oauth_token_secret,
-        ''
-      );
-
-      // Step 6: Fetch identity and profile
-      const identity = await api.getIdentity();
-      const profile = await api.getProfile(identity.username);
-
-      // Save tokens with real username
-      await saveTokens(
-        accessTokenData.oauth_token,
-        accessTokenData.oauth_token_secret,
-        identity.username
-      );
-
-      // Update Zustand auth state
-      setAuth({
-        username: identity.username,
-        avatarUrl: profile.avatar_url,
-        accessToken: accessTokenData.oauth_token,
-        accessTokenSecret: accessTokenData.oauth_token_secret,
-      });
-
-      // Navigate to main app (collection tab created in Task 10)
-      router.replace('/(tabs)' as const);
     } catch (err) {
       console.error('Login error:', err);
-      setError('Login failed. Please try again.');
-    } finally {
+      setError(err instanceof Error ? err.message : String(err));
       setLoading(false);
     }
   }

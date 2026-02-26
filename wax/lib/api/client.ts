@@ -4,9 +4,8 @@ import * as SecureStore from 'expo-secure-store';
 const BASE_URL = 'https://api.discogs.com';
 const USER_AGENT = 'Wax/1.0 +https://github.com/wax-app';
 
-// TODO: Replace with real credentials from discogs.com/settings/developers
-const CONSUMER_KEY = 'YOUR_CONSUMER_KEY';
-const CONSUMER_SECRET = 'YOUR_CONSUMER_SECRET';
+const CONSUMER_KEY = 'REDACTED_KEY';
+const CONSUMER_SECRET = 'REDACTED_SECRET';
 
 const SECURE_STORE_KEYS = {
   accessToken: 'discogs_access_token',
