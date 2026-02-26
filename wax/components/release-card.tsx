@@ -24,6 +24,8 @@ export default function ReleaseCard({ item }: ReleaseCardProps) {
         placeholder={{ blurhash: BLURHASH }}
         contentFit="cover"
         transition={200}
+        cachePolicy="memory-disk"
+        recyclingKey={`card-${item.release_id}`}
         style={{ width: cardWidth, height: cardWidth }}
       />
       <View className="px-3 py-2">

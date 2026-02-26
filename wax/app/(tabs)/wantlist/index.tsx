@@ -134,6 +134,10 @@ export default function WantlistScreen() {
         refreshing={refreshing}
         onRefresh={handleRefresh}
         showsVerticalScrollIndicator={false}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={5}
+        removeClippedSubviews
       />
     </View>
   );

@@ -246,6 +246,15 @@ export default function SearchScreen() {
           keyboardDismissMode="on-drag"
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }}
           showsVerticalScrollIndicator={false}
+          getItemLayout={(_data, index) => ({
+            length: 92,
+            offset: 92 * index,
+            index,
+          })}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews
           ListFooterComponent={
             isFetchingNextPage ? (
               <View className="py-4">
@@ -281,6 +290,8 @@ function SearchResultRow({ item }: { item: DiscogsSearchResult }) {
         placeholder={{ blurhash: BLURHASH }}
         contentFit="cover"
         transition={200}
+        cachePolicy="disk"
+        recyclingKey={`search-${item.id}`}
         style={{ width: 80, height: 80 }}
       />
       <View className="flex-1 px-3 py-2 justify-center">
