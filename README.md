@@ -19,7 +19,9 @@ Wax connects to your existing Discogs account and gives you a faster, more polis
 
 ## Screenshots
 
-*Coming soon*
+<p align="center">
+  <img src="docs/screenshots.png" alt="Wax app screenshots showing Collection, Release Detail, Search, and Profile screens" width="100%">
+</p>
 
 ## Tech Stack
 
