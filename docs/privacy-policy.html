@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wax — Privacy Policy</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 680px; margin: 0 auto; padding: 24px 16px; line-height: 1.6; color: #1a1a1a; background: #fafafa; }
+    h1 { font-size: 28px; margin-bottom: 4px; }
+    h2 { font-size: 20px; margin-top: 32px; }
+    .date { color: #666; font-size: 14px; margin-bottom: 32px; }
+    ul { padding-left: 20px; }
+    li { margin-bottom: 8px; }
+    a { color: #c4882a; }
+  </style>
+</head>
+<body>
+  <h1>Privacy Policy</h1>
+  <p class="date">Effective date: February 26, 2026</p>
+
+  <p>Wax ("the App") is a mobile application that connects to the <a href="https://www.discogs.com/">Discogs</a> API to help you manage your vinyl record collection. This policy explains what data the App accesses, stores, and shares.</p>
+
+  <h2>1. Data We Access</h2>
+  <p>When you sign in with your Discogs account, the App accesses the following data through the Discogs API:</p>
+  <ul>
+    <li>Your Discogs username and profile picture</li>
+    <li>Your collection and wantlist data (release titles, artists, genres, dates)</li>
+    <li>Your collection value (minimum, median, maximum)</li>
+    <li>Public release information (tracklists, marketplace prices, community stats)</li>
+  </ul>
+
+  <h2>2. Data Stored on Your Device</h2>
+  <p>The App stores data locally on your device to enable offline access and faster performance:</p>
+  <ul>
+    <li><strong>OAuth tokens</strong> — stored in your device's secure keychain (expo-secure-store). These allow the App to communicate with Discogs on your behalf.</li>
+    <li><strong>Collection &amp; wantlist cache</strong> — stored in a local SQLite database. This cache is refreshed within 6 hours per Discogs API Terms of Service.</li>
+    <li><strong>Computed statistics</strong> — genre breakdowns, decade distributions, and growth data derived from your collection cache.</li>
+  </ul>
+  <p>Marketplace prices are never persisted locally.</p>
+
+  <h2>3. Data We Do NOT Collect</h2>
+  <ul>
+    <li>We do not collect analytics or usage data</li>
+    <li>We do not use advertising SDKs or trackers</li>
+    <li>We do not transmit your data to any server other than the Discogs API</li>
+    <li>We do not store your Discogs password — authentication is handled entirely by Discogs via OAuth</li>
+  </ul>
+
+  <h2>4. Camera Access</h2>
+  <p>The App requests camera permission solely for barcode scanning. Camera data is processed on-device to detect barcodes and is never recorded, stored, or transmitted.</p>
+
+  <h2>5. Third-Party Services</h2>
+  <p>The App communicates exclusively with the <a href="https://www.discogs.com/developers/">Discogs API</a>. No other third-party services receive your data.</p>
+
+  <h2>6. Data Deletion</h2>
+  <p>You can delete all locally stored data at any time by:</p>
+  <ul>
+    <li>Logging out within the App (Profile &rarr; Log Out), which clears all stored tokens</li>
+    <li>Uninstalling the App, which removes the SQLite database and all cached data</li>
+    <li>Revoking access on <a href="https://www.discogs.com/settings/applications">Discogs Application Settings</a></li>
+  </ul>
+
+  <h2>7. Children's Privacy</h2>
+  <p>The App is not directed at children under 13. We do not knowingly collect data from children.</p>
+
+  <h2>8. Changes to This Policy</h2>
+  <p>If this policy changes, the updated version will be published at this URL. Continued use of the App after changes constitutes acceptance.</p>
+
+  <h2>9. Contact</h2>
+  <p>For questions about this privacy policy, open an issue at <a href="https://github.com/kevjaeg/CrateDigger/issues">github.com/kevjaeg/CrateDigger/issues</a>.</p>
+</body>
+</html>

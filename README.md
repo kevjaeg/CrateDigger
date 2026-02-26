@@ -161,6 +161,12 @@ npx expo start
 
 Scan the QR code with [Expo Go](https://expo.dev/go) or press `i` for iOS simulator / `a` for Android emulator.
 
+## Privacy Policy
+
+[Read the full privacy policy](https://kevjaeg.github.io/CrateDigger/privacy-policy.html)
+
+Wax does not collect analytics, use trackers, or send data to any server other than the Discogs API. All collection data is cached locally on your device.
+
 ## Discogs API Compliance
 
 This app follows the [Discogs API Terms of Service](https://www.discogs.com/developers/):
